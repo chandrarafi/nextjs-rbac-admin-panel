@@ -24,6 +24,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Get user role
+    const userRole = await prisma.role.findUnique({
+      where: { name: "user" },
+    });
+
+    if (!userRole) {
+      return NextResponse.json(
+        {
+          error:
+            "Role 'user' tidak ditemukan. Jalankan seed database terlebih dahulu.",
+        },
+        { status: 500 }
+      );
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
@@ -31,7 +46,7 @@ export async function POST(req: Request) {
         email,
         password: hashedPassword,
         name,
-        role: "user",
+        roleId: userRole.id,
       },
     });
 
@@ -40,6 +55,7 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error) {
+    console.error("Error creating user:", error);
     return NextResponse.json(
       { error: "Terjadi kesalahan server" },
       { status: 500 }

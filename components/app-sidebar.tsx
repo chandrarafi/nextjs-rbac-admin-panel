@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { NavMain } from "@/components/nav-main";
 import { NavMainSkeleton } from "@/components/nav-main-skeleton";
 import { NavUser } from "@/components/nav-user";
+import { useMenu } from "@/lib/hooks/use-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -20,42 +21,19 @@ import {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession();
-  const [menuItems, setMenuItems] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-
-  const fetchMenu = React.useCallback(async () => {
-    try {
-      const response = await fetch("/api/menu", {
-        cache: "no-store",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMenuItems(data);
-      }
-    } catch (error) {
-      console.error("Error fetching menu:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (session) {
-      fetchMenu();
-    }
-  }, [session, fetchMenu]);
+  const { menu, isLoading, mutate } = useMenu();
 
   // Listen for menu updates
   React.useEffect(() => {
     const handleMenuUpdate = () => {
-      fetchMenu();
+      mutate(); // Trigger SWR revalidation
     };
 
     window.addEventListener("menuUpdated", handleMenuUpdate);
     return () => {
       window.removeEventListener("menuUpdated", handleMenuUpdate);
     };
-  }, [fetchMenu]);
+  }, [mutate]);
 
   const userData = {
     name: session?.user?.name || "User",
@@ -85,7 +63,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {loading ? <NavMainSkeleton /> : <NavMain items={menuItems} />}
+        {isLoading ? <NavMainSkeleton /> : <NavMain items={menu} />}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />

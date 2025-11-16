@@ -4,9 +4,10 @@ import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { createUserSchema } from "@/lib/validations/user";
 import { ZodError } from "zod";
+import { checkPermission } from "@/lib/check-permission";
 
 // GET - List all users
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth();
 
@@ -18,49 +19,76 @@ export async function GET() {
     }
 
     // Check if user has permission to read users
-    const userRole = await prisma.role.findUnique({
-      where: { name: session.user.role },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    });
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "users",
+      "read"
+    );
 
-    const hasReadPermission =
-      session.user.role === "admin" ||
-      userRole?.permissions.some(
-        (rp: any) =>
-          rp.permission.module === "users" && rp.permission.action === "read"
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to read users" },
+        { status: 403 }
       );
-
-    if (!hasReadPermission) {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        roleId: true,
-        role: {
-          select: {
-            id: true,
-            name: true,
+    // Get pagination params
+    const url = new URL(req.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = Math.min(
+      parseInt(url.searchParams.get("limit") || "10"),
+      100
+    );
+    const search = url.searchParams.get("search") || "";
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const where = search
+      ? {
+          OR: [
+            { email: { contains: search, mode: "insensitive" as const } },
+            { name: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : {};
+
+    // Fetch users and total count in parallel
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          roleId: true,
+          role: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
+          createdAt: true,
+          updatedAt: true,
         },
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: {
-        createdAt: "desc",
+        take: limit,
+        skip: skip,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     });
-
-    return NextResponse.json(users);
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json(
@@ -80,26 +108,17 @@ export async function POST(req: Request) {
     }
 
     // Check if user has permission to create users
-    const userRole = await prisma.role.findUnique({
-      where: { name: session.user.role },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    });
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "users",
+      "create"
+    );
 
-    const hasCreatePermission =
-      session.user.role === "admin" ||
-      userRole?.permissions.some(
-        (rp: any) =>
-          rp.permission.module === "users" && rp.permission.action === "create"
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to create users" },
+        { status: 403 }
       );
-
-    if (!hasCreatePermission) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await req.json();

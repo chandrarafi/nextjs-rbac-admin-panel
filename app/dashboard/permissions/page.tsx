@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { usePermissions } from "@/lib/hooks/use-permissions";
+import { usePageVisibility } from "@/lib/hooks/use-page-visibility";
 import {
   Card,
   CardContent,
@@ -22,47 +24,32 @@ import { toast } from "sonner";
 export default function PermissionsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPermission, setSelectedPermission] =
     useState<Permission | null>(null);
+
+  // Detect if page is visible for conditional polling
+  const isPageVisible = usePageVisibility();
+
+  // Auto-refresh every 15 seconds when page is visible
+  const { permissions, pagination, isLoading, mutate } = usePermissions({
+    page,
+    limit: 50,
+    search,
+    refreshInterval: isPageVisible ? 15000 : 0, // 15s when visible
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
       return;
     }
-
-    if (status === "authenticated" && session?.user?.role !== "admin") {
-      router.push("/dashboard");
-    }
-  }, [status, session, router]);
-
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "admin") {
-      fetchPermissions();
-    }
-  }, [status, session]);
-
-  const fetchPermissions = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/permissions");
-      if (response.ok) {
-        const data = await response.json();
-        setPermissions(data);
-      } else {
-        toast.error("Gagal memuat data permission");
-      }
-    } catch (error) {
-      console.error("Error fetching permissions:", error);
-      toast.error("Terjadi kesalahan saat memuat data");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Permission check removed - API will handle authorization
+    // This allows users with proper permissions to access the page
+  }, [status, router]);
 
   const handleEdit = (permission: Permission) => {
     setSelectedPermission(permission);
@@ -87,7 +74,7 @@ export default function PermissionsPage() {
 
       if (response.ok) {
         toast.success("Permission berhasil dihapus");
-        fetchPermissions();
+        mutate();
         setDeleteDialogOpen(false);
         setSelectedPermission(null);
       } else {
@@ -104,7 +91,7 @@ export default function PermissionsPage() {
     setDialogOpen(false);
     setSelectedPermission(null);
     if (refresh) {
-      fetchPermissions();
+      mutate();
     }
   };
 
@@ -121,10 +108,6 @@ export default function PermissionsPage() {
         <Skeleton className="h-[400px]" />
       </div>
     );
-  }
-
-  if (status === "authenticated" && session?.user?.role !== "admin") {
-    return null;
   }
 
   const columns = createColumns(handleEdit, handleDelete);
@@ -154,7 +137,7 @@ export default function PermissionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />

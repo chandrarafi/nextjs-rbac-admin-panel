@@ -93,13 +93,17 @@ export function RoleDialog({ open, onClose, role }: RoleDialogProps) {
 
   const fetchPermissions = async () => {
     try {
-      const response = await fetch("/api/permissions");
+      // Fetch all permissions for dialog (limit 200 should be enough)
+      const response = await fetch("/api/permissions?page=1&limit=200");
       if (response.ok) {
-        const data = await response.json();
-        setPermissions(data);
+        const result = await response.json();
+        // Handle new pagination format { data: [], pagination: {} }
+        const permissionsData = result.data || result;
+        setPermissions(Array.isArray(permissionsData) ? permissionsData : []);
       }
     } catch (error) {
       console.error("Error fetching permissions:", error);
+      setPermissions([]);
     }
   };
 

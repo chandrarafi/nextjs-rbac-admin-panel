@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useRoles } from "@/lib/hooks/use-roles";
+import { usePageVisibility } from "@/lib/hooks/use-page-visibility";
 import {
   Card,
   CardContent,
@@ -22,46 +24,31 @@ import { toast } from "sonner";
 export default function RolesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+
+  // Detect if page is visible for conditional polling
+  const isPageVisible = usePageVisibility();
+
+  // Auto-refresh every 15 seconds when page is visible
+  const { roles, pagination, isLoading, mutate } = useRoles({
+    page,
+    limit: 50,
+    search,
+    refreshInterval: isPageVisible ? 15000 : 0, // 15s when visible
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
       return;
     }
-
-    if (status === "authenticated" && session?.user?.role !== "admin") {
-      router.push("/dashboard");
-    }
-  }, [status, session, router]);
-
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "admin") {
-      fetchRoles();
-    }
-  }, [status, session]);
-
-  const fetchRoles = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/roles");
-      if (response.ok) {
-        const data = await response.json();
-        setRoles(data);
-      } else {
-        toast.error("Gagal memuat data role");
-      }
-    } catch (error) {
-      console.error("Error fetching roles:", error);
-      toast.error("Terjadi kesalahan saat memuat data");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Permission check removed - API will handle authorization
+    // This allows users with proper permissions to access the page
+  }, [status, router]);
 
   const handleEdit = (role: Role) => {
     setSelectedRole(role);
@@ -83,7 +70,7 @@ export default function RolesPage() {
 
       if (response.ok) {
         toast.success("Role berhasil dihapus");
-        fetchRoles();
+        mutate();
         setDeleteDialogOpen(false);
         setSelectedRole(null);
       } else {
@@ -100,7 +87,7 @@ export default function RolesPage() {
     setDialogOpen(false);
     setSelectedRole(null);
     if (refresh) {
-      fetchRoles();
+      mutate();
     }
   };
 
@@ -117,10 +104,6 @@ export default function RolesPage() {
         <Skeleton className="h-[400px]" />
       </div>
     );
-  }
-
-  if (status === "authenticated" && session?.user?.role !== "admin") {
-    return null;
   }
 
   const columns = createColumns(handleEdit, handleDelete);
@@ -148,7 +131,7 @@ export default function RolesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />

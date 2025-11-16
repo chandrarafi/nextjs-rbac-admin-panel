@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateRoleSchema } from "@/lib/validations/role";
 import { ZodError } from "zod";
+import { checkPermission } from "@/lib/check-permission";
+import { formatZodError } from "@/lib/format-zod-error";
 
 export async function PUT(
   request: NextRequest,
@@ -13,6 +15,20 @@ export async function PUT(
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check permission for update action
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "roles",
+      "update"
+    );
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to update roles" },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;
@@ -80,10 +96,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error: "Validation error",
-          details: error.errors.map((err) => ({
-            field: err.path.join("."),
-            message: err.message,
-          })),
+          details: formatZodError(error),
         },
         { status: 400 }
       );
@@ -106,6 +119,20 @@ export async function DELETE(
 
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check permission for delete action
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "roles",
+      "delete"
+    );
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to delete roles" },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

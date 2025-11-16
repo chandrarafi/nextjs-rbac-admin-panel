@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { updateUserSchema } from "@/lib/validations/user";
 import { ZodError } from "zod";
+import { checkPermission } from "@/lib/check-permission";
 
 // GET - Get single user
 export async function GET(
@@ -21,26 +22,17 @@ export async function GET(
     }
 
     // Check permission
-    const userRole = await prisma.role.findUnique({
-      where: { name: session.user.role },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    });
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "users",
+      "read"
+    );
 
-    const hasReadPermission =
-      session.user.role === "admin" ||
-      userRole?.permissions.some(
-        (rp: any) =>
-          rp.permission.module === "users" && rp.permission.action === "read"
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to read users" },
+        { status: 403 }
       );
-
-    if (!hasReadPermission) {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -93,26 +85,17 @@ export async function PUT(
     }
 
     // Check permission
-    const userRole = await prisma.role.findUnique({
-      where: { name: session.user.role },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    });
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "users",
+      "update"
+    );
 
-    const hasUpdatePermission =
-      session.user.role === "admin" ||
-      userRole?.permissions.some(
-        (rp: any) =>
-          rp.permission.module === "users" && rp.permission.action === "update"
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to update users" },
+        { status: 403 }
       );
-
-    if (!hasUpdatePermission) {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
     }
 
     const { id } = await params;
@@ -230,26 +213,17 @@ export async function DELETE(
     }
 
     // Check permission
-    const userRole = await prisma.role.findUnique({
-      where: { name: session.user.role },
-      include: {
-        permissions: {
-          include: {
-            permission: true,
-          },
-        },
-      },
-    });
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "users",
+      "delete"
+    );
 
-    const hasDeletePermission =
-      session.user.role === "admin" ||
-      userRole?.permissions.some(
-        (rp: any) =>
-          rp.permission.module === "users" && rp.permission.action === "delete"
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to delete users" },
+        { status: 403 }
       );
-
-    if (!hasDeletePermission) {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
     }
 
     const { id } = await params;
