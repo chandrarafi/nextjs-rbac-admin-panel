@@ -18,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useIcons } from "@/lib/hooks/use-icons";
 
 interface IconPickerProps {
   value?: string;
@@ -26,26 +27,7 @@ interface IconPickerProps {
 
 export function IconPickerDB({ value, onValueChange }: IconPickerProps) {
   const [open, setOpen] = React.useState(false);
-  const [icons, setIcons] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    fetchIcons();
-  }, []);
-
-  const fetchIcons = async () => {
-    try {
-      const response = await fetch("/api/icons");
-      if (response.ok) {
-        const data = await response.json();
-        setIcons(data);
-      }
-    } catch (error) {
-      console.error("Error fetching icons:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { icons, isLoading } = useIcons();
 
   const renderIcon = (iconName: string) => {
     const IconComponent = (LucideIcons as any)[iconName];
@@ -54,15 +36,13 @@ export function IconPickerDB({ value, onValueChange }: IconPickerProps) {
   };
 
   // Group icons by category
-  const groupedIcons = icons.reduce((acc, icon) => {
+  const groupedIcons = icons.reduce((acc: Record<string, any[]>, icon: any) => {
     if (!acc[icon.category]) {
       acc[icon.category] = [];
     }
     acc[icon.category].push(icon);
     return acc;
   }, {} as Record<string, any[]>);
-
-  const selectedIcon = icons.find((icon) => icon.name === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -100,7 +80,7 @@ export function IconPickerDB({ value, onValueChange }: IconPickerProps) {
           <CommandInput placeholder="Cari icon..." />
           <CommandList>
             <CommandEmpty>
-              {loading ? "Loading icons..." : "Icon tidak ditemukan."}
+              {isLoading ? "Loading icons..." : "Icon tidak ditemukan."}
             </CommandEmpty>
             {Object.entries(groupedIcons).map(
               ([category, categoryIcons]: [string, any]) => (

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useUsers } from "@/lib/hooks/use-users";
+import { usePageVisibility } from "@/lib/hooks/use-page-visibility";
 import {
   Card,
   CardContent,
@@ -22,40 +24,29 @@ import { toast } from "sonner";
 export default function UsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Detect if page is visible for conditional polling
+  const isPageVisible = usePageVisibility();
+
+  // Auto-refresh every 10 seconds when page is visible
+  const { users, pagination, isLoading, mutate } = useUsers({
+    page,
+    limit: 10,
+    search,
+    refreshInterval: isPageVisible ? 10000 : 0, // 10s when visible, disabled when hidden
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
       return;
     }
-
-    if (status === "authenticated") {
-      fetchUsers();
-    }
-  }, [status, session, router]);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/users");
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      } else {
-        toast.error("Gagal memuat data pengguna");
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Terjadi kesalahan saat memuat data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [status, router]);
 
   const handleEdit = (user: User) => {
     setSelectedUser(user);
@@ -77,7 +68,7 @@ export default function UsersPage() {
 
       if (response.ok) {
         toast.success("Pengguna berhasil dihapus");
-        fetchUsers();
+        mutate();
         setDeleteDialogOpen(false);
         setSelectedUser(null);
       } else {
@@ -94,7 +85,7 @@ export default function UsersPage() {
     setDialogOpen(false);
     setSelectedUser(null);
     if (refresh) {
-      fetchUsers();
+      mutate();
     }
   };
 
@@ -167,7 +158,7 @@ export default function UsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex items-center space-x-4">

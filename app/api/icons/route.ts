@@ -12,12 +12,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const icons = await prisma.icon.findMany({
-      where: { isActive: true },
-      orderBy: [{ category: "asc" }, { name: "asc" }],
-    });
+    // Get pagination params
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 200);
+    const search = searchParams.get("search") || "";
 
-    return NextResponse.json(icons);
+    const skip = (page - 1) * limit;
+
+    const where = {
+      isActive: true,
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { category: { contains: search, mode: "insensitive" as const } },
+        ],
+      }),
+    };
+
+    const [icons, total] = await Promise.all([
+      prisma.icon.findMany({
+        where,
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+        take: limit,
+        skip: skip,
+      }),
+      prisma.icon.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: icons,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error("Error fetching icons:", error);
     return NextResponse.json(

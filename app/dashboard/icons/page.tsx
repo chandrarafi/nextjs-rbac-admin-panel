@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useIcons } from "@/lib/hooks/use-icons";
+import { usePageVisibility } from "@/lib/hooks/use-page-visibility";
 import {
   Card,
   CardContent,
@@ -22,11 +24,22 @@ import { toast } from "sonner";
 export default function IconsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [icons, setIcons] = useState<Icon[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedIcon, setSelectedIcon] = useState<Icon | null>(null);
+
+  // Detect if page is visible for conditional polling
+  const isPageVisible = usePageVisibility();
+
+  // Auto-refresh every 30 seconds when page is visible (icons change less frequently)
+  const { icons, pagination, isLoading, mutate } = useIcons({
+    page,
+    limit: 100,
+    search,
+    refreshInterval: isPageVisible ? 30000 : 0, // 30s when visible
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -34,30 +47,6 @@ export default function IconsPage() {
       return;
     }
   }, [status, router]);
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      fetchIcons();
-    }
-  }, [status]);
-
-  const fetchIcons = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/icons");
-      if (response.ok) {
-        const data = await response.json();
-        setIcons(data);
-      } else {
-        toast.error("Gagal memuat data icon");
-      }
-    } catch (error) {
-      console.error("Error fetching icons:", error);
-      toast.error("Terjadi kesalahan saat memuat data");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEdit = (icon: Icon) => {
     setSelectedIcon(icon);
@@ -79,7 +68,7 @@ export default function IconsPage() {
 
       if (response.ok) {
         toast.success("Icon berhasil dihapus");
-        fetchIcons();
+        mutate();
         setDeleteDialogOpen(false);
         setSelectedIcon(null);
       } else {
@@ -96,7 +85,7 @@ export default function IconsPage() {
     setDialogOpen(false);
     setSelectedIcon(null);
     if (refresh) {
-      fetchIcons();
+      mutate();
     }
   };
 
@@ -133,7 +122,7 @@ export default function IconsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />

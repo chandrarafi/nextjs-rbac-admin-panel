@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { checkPermission } from "@/lib/check-permission";
 
 // GET - List all menus (Admin only)
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth();
 
@@ -11,29 +12,70 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Check permission for read action
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "menus",
+      "read"
+    );
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to read menus" },
+        { status: 403 }
+      );
     }
 
-    const menus = await prisma.menu.findMany({
-      orderBy: [{ order: "asc" }],
-      include: {
-        parent: {
-          select: {
-            id: true,
-            title: true,
+    // Get pagination params
+    const url = new URL(req.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = Math.min(
+      parseInt(url.searchParams.get("limit") || "50"),
+      100
+    );
+    const search = url.searchParams.get("search") || "";
+
+    const skip = (page - 1) * limit;
+
+    const where = search
+      ? {
+          title: { contains: search, mode: "insensitive" as const },
+        }
+      : {};
+
+    const [menus, total] = await Promise.all([
+      prisma.menu.findMany({
+        where,
+        orderBy: [{ order: "asc" }],
+        include: {
+          parent: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          children: {
+            select: {
+              id: true,
+              title: true,
+            },
           },
         },
-        children: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
+        take: limit,
+        skip: skip,
+      }),
+      prisma.menu.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: menus,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     });
-
-    return NextResponse.json(menus);
   } catch (error) {
     console.error("Error fetching menus:", error);
     return NextResponse.json(
@@ -52,8 +94,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Check permission for create action
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "menus",
+      "create"
+    );
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to create menus" },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();

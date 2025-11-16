@@ -24,6 +24,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   @@index([roleId])
+  @@index([email])
+  @@index([createdAt])
 }
 
 model Role {
@@ -35,6 +37,9 @@ model Role {
   permissions RolePermission[]
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
+  @@index([name])
+  @@index([isActive])
 }
 
 model Permission {
@@ -48,6 +53,8 @@ model Permission {
   updatedAt   DateTime         @updatedAt
 
   @@unique([module, action])
+  @@index([module])
+  @@index([name])
 }
 
 model RolePermission {
@@ -61,38 +68,6 @@ model RolePermission {
   @@unique([roleId, permissionId])
   @@index([roleId])
   @@index([permissionId])
-}
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
 }
 
 model Menu {
@@ -111,6 +86,8 @@ model Menu {
 
   @@index([parentId])
   @@index([order])
+  @@index([isActive])
+  @@index([title])
 }
 
 model Icon {
@@ -122,4 +99,6 @@ model Icon {
   updatedAt   DateTime @updatedAt
 
   @@index([category])
+  @@index([isActive])
+  @@index([name])
 }

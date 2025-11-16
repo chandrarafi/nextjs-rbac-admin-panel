@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { checkPermission } from "@/lib/check-permission";
 
-// GET - Get single menu (Admin only)
+// GET - Get single menu
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -17,8 +18,18 @@ export async function GET(
       );
     }
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+    // Check permission for read action
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "menus",
+      "read"
+    );
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to read menus" },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;
@@ -55,7 +66,7 @@ export async function GET(
   }
 }
 
-// PUT - Update menu (Admin only)
+// PUT - Update menu
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -70,8 +81,18 @@ export async function PUT(
       );
     }
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+    // Check permission for update action
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "menus",
+      "update"
+    );
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to update menus" },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;
@@ -180,9 +201,9 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete menu (Admin only)
+// DELETE - Delete menu
 export async function DELETE(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -195,8 +216,18 @@ export async function DELETE(
       );
     }
 
-    if (session.user.role !== "admin") {
-      return NextResponse.json({ error: "Akses ditolak" }, { status: 403 });
+    // Check permission for delete action
+    const hasPermission = await checkPermission(
+      session.user.role || "",
+      "menus",
+      "delete"
+    );
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { error: "Forbidden: You don't have permission to delete menus" },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

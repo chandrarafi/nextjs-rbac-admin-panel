@@ -1,8 +1,11 @@
 "use client";
 
+import * as React from "react";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useAdminMenu } from "@/lib/hooks/use-admin-menu";
+import { usePageVisibility } from "@/lib/hooks/use-page-visibility";
 import {
   Card,
   CardContent,
@@ -22,49 +25,39 @@ import { toast } from "sonner";
 export default function MenusPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [menus, setMenus] = useState<Menu[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
+
+  // Detect if page is visible for conditional polling
+  const isPageVisible = usePageVisibility();
+
+  // Auto-refresh every 15 seconds when page is visible
+  const {
+    menus: rawMenus,
+    pagination,
+    isLoading,
+    mutate,
+  } = useAdminMenu({
+    page,
+    limit: 50,
+    search,
+    refreshInterval: isPageVisible ? 15000 : 0, // 15s when visible
+  });
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
       return;
     }
-
-    if (status === "authenticated" && session?.user?.role !== "admin") {
-      router.push("/dashboard");
-    }
-  }, [status, session, router]);
-
-  useEffect(() => {
-    if (status === "authenticated" && session?.user?.role === "admin") {
-      fetchMenus();
-    }
-  }, [status, session]);
-
-  const fetchMenus = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/menu");
-      if (response.ok) {
-        const data = await response.json();
-        setMenus(flattenMenus(data));
-      } else {
-        toast.error("Gagal memuat data menu");
-      }
-    } catch (error) {
-      console.error("Error fetching menus:", error);
-      toast.error("Terjadi kesalahan saat memuat data");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Permission check removed - API will handle authorization
+    // This allows users with proper permissions to access the page
+  }, [status, router]);
 
   // Flatten nested menu structure for table display
-  const flattenMenus = (menuList: Menu[]): Menu[] => {
+  const flattenMenus = React.useCallback((menuList: Menu[]): Menu[] => {
     // Sort by order first
     const sorted = [...menuList].sort((a, b) => a.order - b.order);
 
@@ -98,7 +91,12 @@ export default function MenusPage() {
     };
     flatten(rootMenus);
     return result;
-  };
+  }, []);
+
+  const menus = React.useMemo(
+    () => flattenMenus(rawMenus),
+    [rawMenus, flattenMenus]
+  );
 
   const handleEdit = (menu: Menu) => {
     setSelectedMenu(menu);
@@ -122,7 +120,7 @@ export default function MenusPage() {
         toast.success("Menu berhasil dihapus");
         // Trigger menu update event for sidebar
         window.dispatchEvent(new Event("menuUpdated"));
-        fetchMenus();
+        mutate();
         setDeleteDialogOpen(false);
         setSelectedMenu(null);
       } else {
@@ -139,7 +137,7 @@ export default function MenusPage() {
     setDialogOpen(false);
     setSelectedMenu(null);
     if (refresh) {
-      fetchMenus();
+      mutate();
     }
   };
 
@@ -156,10 +154,6 @@ export default function MenusPage() {
         <Skeleton className="h-[400px]" />
       </div>
     );
-  }
-
-  if (status === "authenticated" && session?.user?.role !== "admin") {
-    return null;
   }
 
   const columns = createColumns(handleEdit, handleDelete);
@@ -187,7 +181,7 @@ export default function MenusPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />

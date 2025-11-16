@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import * as Icons from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 
 import {
   Collapsible,
@@ -39,17 +40,26 @@ function getIcon(iconName: string | null) {
 function MenuLevel3({ items }: { items: MenuItem[] }) {
   const pathname = usePathname();
 
-  if (!items || items.length === 0) return null;
+  // Memoize filtered items to prevent unnecessary re-renders
+  const validItems = useMemo(() => items.filter((item) => item.url), [items]);
+
+  if (validItems.length === 0) return null;
 
   return (
-    <SidebarMenuSub>
-      {items.map((item) => {
+    <SidebarMenuSub className="transition-all duration-200 ease-in-out">
+      {validItems.map((item) => {
         const isActive = pathname === item.url;
 
         return (
-          <SidebarMenuSubItem key={item.id}>
+          <SidebarMenuSubItem
+            key={item.id}
+            className="transition-colors duration-150"
+          >
             <SidebarMenuSubButton asChild isActive={isActive}>
-              <Link href={item.url || "#"}>
+              <Link
+                href={item.url!}
+                className="transition-all duration-150 ease-in-out"
+              >
                 <span>{item.title}</span>
               </Link>
             </SidebarMenuSubButton>
@@ -66,32 +76,37 @@ function MenuLevel2({ items }: { items: MenuItem[] }) {
   if (!items || items.length === 0) return null;
 
   return (
-    <SidebarMenuSub>
+    <SidebarMenuSub className="transition-all duration-200 ease-in-out">
       {items.map((item) => {
         const hasChildren = item.items && item.items.length > 0;
-        const isActive = pathname === item.url;
+        const isActive = item.url ? pathname === item.url : false;
+
+        // Check if any grandchild is active
         const hasActiveChild = item.items?.some(
-          (child) =>
-            pathname === child.url ||
-            child.items?.some((grandChild) => pathname === grandChild.url)
+          (child) => child.url && pathname === child.url
         );
+
+        const shouldHighlight = isActive || hasActiveChild;
 
         if (hasChildren) {
           return (
             <Collapsible
               key={item.id}
               asChild
-              defaultOpen={hasActiveChild}
-              className="group/collapsible"
+              defaultOpen={shouldHighlight}
+              className="group/collapsible transition-all duration-200"
             >
-              <SidebarMenuSubItem>
+              <SidebarMenuSubItem className="transition-colors duration-150">
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuSubButton isActive={isActive || hasActiveChild}>
+                  <SidebarMenuSubButton
+                    isActive={shouldHighlight}
+                    className="transition-all duration-150 ease-in-out"
+                  >
                     <span>{item.title}</span>
-                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    <ChevronRight className="ml-auto transition-transform duration-200 ease-in-out group-data-[state=open]/collapsible:rotate-90" />
                   </SidebarMenuSubButton>
                 </CollapsibleTrigger>
-                <CollapsibleContent>
+                <CollapsibleContent className="transition-all duration-200 ease-in-out data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                   <MenuLevel3 items={item.items || []} />
                 </CollapsibleContent>
               </SidebarMenuSubItem>
@@ -99,10 +114,21 @@ function MenuLevel2({ items }: { items: MenuItem[] }) {
           );
         }
 
+        // Skip menu items without URL
+        if (!item.url) {
+          return null;
+        }
+
         return (
-          <SidebarMenuSubItem key={item.id}>
+          <SidebarMenuSubItem
+            key={item.id}
+            className="transition-colors duration-150"
+          >
             <SidebarMenuSubButton asChild isActive={isActive}>
-              <Link href={item.url || "#"}>
+              <Link
+                href={item.url}
+                className="transition-all duration-150 ease-in-out"
+              >
                 <span>{item.title}</span>
               </Link>
             </SidebarMenuSubButton>
@@ -116,47 +142,56 @@ function MenuLevel2({ items }: { items: MenuItem[] }) {
 export function NavMain({ items }: { items: MenuItem[] }) {
   const pathname = usePathname();
 
-  if (!items || items.length === 0) {
+  // Memoize menu items to prevent unnecessary re-renders
+  const menuItems = useMemo(() => items, [items]);
+
+  if (!menuItems || menuItems.length === 0) {
     return null;
   }
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-      <SidebarMenu>
-        {items.map((item) => {
+      <SidebarMenu className="transition-all duration-200 ease-in-out">
+        {menuItems.map((item) => {
           const hasChildren = item.items && item.items.length > 0;
           const icon = getIcon(item.icon);
-          const isActive = pathname === item.url;
+
+          // More precise active state checking
+          const isActive = item.url ? pathname === item.url : false;
 
           // Check if any child or grandchild is active
           const hasActiveChild = item.items?.some((child) => {
-            if (pathname === child.url) return true;
+            if (child.url && pathname === child.url) return true;
             return child.items?.some(
-              (grandChild) => pathname === grandChild.url
+              (grandChild) => grandChild.url && pathname === grandChild.url
             );
           });
+
+          // Determine if this menu should be highlighted
+          const shouldHighlight = isActive || hasActiveChild;
 
           if (hasChildren) {
             return (
               <Collapsible
                 key={item.id}
                 asChild
-                defaultOpen={hasActiveChild}
-                className="group/collapsible"
+                defaultOpen={shouldHighlight}
+                className="group/collapsible transition-all duration-200"
               >
-                <SidebarMenuItem>
+                <SidebarMenuItem className="transition-colors duration-150">
                   <CollapsibleTrigger asChild>
                     <SidebarMenuButton
                       tooltip={item.title}
-                      isActive={isActive || hasActiveChild}
+                      isActive={shouldHighlight}
+                      className="transition-all duration-150 ease-in-out"
                     >
                       {icon}
                       <span>{item.title}</span>
-                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      <ChevronRight className="ml-auto transition-transform duration-200 ease-in-out group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
+                  <CollapsibleContent className="transition-all duration-200 ease-in-out data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
                     <MenuLevel2 items={item.items || []} />
                   </CollapsibleContent>
                 </SidebarMenuItem>
@@ -164,14 +199,23 @@ export function NavMain({ items }: { items: MenuItem[] }) {
             );
           }
 
+          // Skip menu items without URL
+          if (!item.url) {
+            return null;
+          }
+
           return (
-            <SidebarMenuItem key={item.id}>
+            <SidebarMenuItem
+              key={item.id}
+              className="transition-colors duration-150"
+            >
               <SidebarMenuButton
                 asChild
                 tooltip={item.title}
                 isActive={isActive}
+                className="transition-all duration-150 ease-in-out"
               >
-                <Link href={item.url || "#"}>
+                <Link href={item.url}>
                   {icon}
                   <span>{item.title}</span>
                 </Link>
