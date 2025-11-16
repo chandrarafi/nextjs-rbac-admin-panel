@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,7 +48,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Login</CardTitle>

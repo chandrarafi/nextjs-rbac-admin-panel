@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DashboardLayout({
   children,
@@ -15,6 +16,9 @@ export default function DashboardLayout({
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <h1 className="text-lg font-semibold">Admin Dashboard</h1>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+          </div>
         </header>
         <div className="flex-1 p-6">{children}</div>
       </main>
