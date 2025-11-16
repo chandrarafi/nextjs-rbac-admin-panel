@@ -24,6 +24,7 @@ import { createMenuSchema, updateMenuSchema } from "@/lib/validations/menu";
 import { ZodError } from "zod";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { IconPickerDB } from "@/components/icon-picker-db";
 
 interface Menu {
   id: string;
@@ -262,11 +263,9 @@ export function MenuDialog({ open, onClose, menu, menus }: MenuDialogProps) {
 
             <div className="space-y-2">
               <Label htmlFor="icon">Icon (Lucide)</Label>
-              <Input
-                id="icon"
+              <IconPickerDB
                 value={formData.icon || ""}
-                onChange={(e) => handleChange("icon", e.target.value)}
-                placeholder="e.g., LayoutDashboard"
+                onValueChange={(value) => handleChange("icon", value)}
               />
               {errors.icon && (
                 <p className="text-sm text-destructive flex items-center gap-1">
