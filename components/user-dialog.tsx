@@ -28,7 +28,11 @@ interface User {
   id: string;
   email: string;
   name: string | null;
-  role: string;
+  roleId: string | null;
+  role: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface UserDialogProps {
@@ -66,7 +70,7 @@ export function UserDialog({ open, onClose, user }: UserDialogProps) {
         email: user.email,
         name: user.name || "",
         password: "",
-        role: user.role,
+        role: user.role?.name || "user",
       });
     } else {
       setFormData({
