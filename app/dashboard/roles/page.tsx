@@ -109,28 +109,34 @@ export default function RolesPage() {
   const columns = createColumns(handleEdit, handleDelete);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Manajemen Role</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
+            Manajemen Role
+          </h2>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             Kelola role dan permission untuk kontrol akses
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="w-full sm:w-auto touch-target"
+        >
           <Plus className="mr-2 h-4 w-4" />
-          Tambah Role
+          <span className="hide-mobile">Tambah Role</span>
+          <span className="show-mobile">Tambah</span>
         </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Semua Role</CardTitle>
-          <CardDescription>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">Semua Role</CardTitle>
+          <CardDescription className="text-sm">
             Daftar semua role yang tersedia di sistem
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6">
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
